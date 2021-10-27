@@ -1,4 +1,6 @@
 #include "ZombieCharacter.h"
+
+#include "DrawDebugHelpers.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -35,11 +37,14 @@ AZombieCharacter::AZombieCharacter()
 	Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Lantern"));
 	Flashlight->SetupAttachment(RootComponent);
 
+	
+
 }
 
 inline void AZombieCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	SpawnWeapon();
 	GetWorld()->GetFirstPlayerController()->SetShowMouseCursor(true);
 }
 
@@ -58,20 +63,18 @@ void AZombieCharacter::RotateCharacter()
 	GetWorld()->GetFirstPlayerController()->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Camera), false, HitResult);
 	FVector Start = FVector(GetActorLocation().X, GetActorLocation().Y, 0);
 	FVector Target = FVector(HitResult.ImpactPoint.X, HitResult.ImpactPoint.Y, 0);
-	FRotator FindLook = UKismetMathLibrary::FindLookAtRotation(Start, Target);
-	FRotator RotateMouse = FMath::RInterpTo(GetActorRotation(), FindLook, 0.3f, 0.3f);
+	FRotator FindLookTarget = UKismetMathLibrary::FindLookAtRotation(Start, Target);
+	FRotator RotateMouse = FMath::RInterpTo(GetActorRotation(), FindLookTarget, 0.3f, 0.3f);
 	GetController()->SetControlRotation(RotateMouse);
 }
 
 void AZombieCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	check(PlayerInputComponent);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
-	
 	PlayerInputComponent->BindAxis("MoveForward", this, &AZombieCharacter::MoveForward);
 
 	PlayerInputComponent->BindAction("Flashlight", IE_Pressed, this, &AZombieCharacter::FlashlightTurnOnOff);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AZombieCharacter::Fire);
 }
 
 void AZombieCharacter::MoveForward(float Value)
@@ -98,3 +101,62 @@ void AZombieCharacter::FlashlightTurnOnOff()
 		bFlashlight = true;
 	}
 }
+
+void AZombieCharacter::Fire()
+{
+	FHitResult MouseHitResult;
+	GetWorld()->GetFirstPlayerController()->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Camera), false, MouseHitResult);
+	//FVector Start = FollowCamera->GetComponentLocation();
+	FVector Start = Pistol->GetActorLocation();
+	
+	//FVector FollowCameraForwardVector = FollowCamera->GetForwardVector();
+	FVector End = MouseHitResult.ImpactPoint * HelpMultiplyValue;
+
+	FHitResult OutHit;
+	
+	
+	FCollisionQueryParams CollisionParams;
+	FActorSpawnParameters SpawnInfo;
+	CollisionParams.AddIgnoredActor(this);
+	
+	DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 3, 0, 2);
+
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Pawn, CollisionParams);
+
+	
+	
+	if(bIsHit)
+	{
+		if(GEngine)
+		{
+			if(OutHit.Actor->ActorHasTag("Enemy"))
+			{
+				//OutHit.GetActor()->TakeDamage(PistolDamage, FDamageEvent(), GetController(), this);
+				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Health: %s"), *OutHit.BoneName.ToString()));
+				
+			}else if(OutHit.Actor->ActorHasTag("Destruction"))
+			{
+				//AActor* RadialForceSpawn = GetWorld()->SpawnActor<AActor>(RadialForce,OutHit.ImpactPoint, FRotator::ZeroRotator, SpawnInfo);
+				//RadialForceSpawn->Destroy();
+				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Bottle!! %s"), *OutHit.ImpactPoint.ToString()));
+			}
+		}
+
+		
+	}
+}
+
+void AZombieCharacter::SpawnWeapon()
+{
+	FVector Location = GetMesh()->GetSocketLocation("WeaponSocket");
+	FRotator Rotation = GetMesh()->GetSocketRotation("WeaponSocket");
+	
+	FActorSpawnParameters SpawnInfo;
+	FAttachmentTransformRules AttachRules = FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
+	
+	Pistol = GetWorld()->SpawnActor<AActor>(Weapon,Location, Rotation, SpawnInfo);
+	
+	Pistol->AttachToComponent(GetMesh(), AttachRules, "WeaponSocket");
+}
+
+

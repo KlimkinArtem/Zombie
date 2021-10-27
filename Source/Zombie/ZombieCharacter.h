@@ -21,8 +21,21 @@ class AZombieCharacter : public ACharacter
 public:
 	AZombieCharacter();
 
+	//Flashlight
 	UPROPERTY(VisibleAnywhere, Category = "Light Switch")
 	class USpotLightComponent* Flashlight;
+
+	UPROPERTY(EditDefaultsOnly, Category= "Weapon")
+	TSubclassOf<AActor> Weapon;
+
+	UPROPERTY(EditDefaultsOnly, Category= "Help")
+	float HelpAddValue = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, Category= "Help")
+	float HelpMultiplyValue = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, Category= "Help")
+	float HelpDivideValue = 1.f;
 
 protected:
 	
@@ -43,11 +56,18 @@ public:
 
 private:
 
+	//rotate character 
 	void RotateCharacter();
 
+	//Flashlight
 	void FlashlightTurnOnOff();
-	
 	bool bFlashlight = false;
+
+	//fire
+	void Fire();
+	void SpawnWeapon();
+	AActor* Pistol;
+	
 };
 
 
