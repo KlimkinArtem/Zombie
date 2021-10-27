@@ -104,6 +104,7 @@ void AZombieCharacter::FlashlightTurnOnOff()
 
 void AZombieCharacter::Fire()
 {
+	Shoot.Broadcast();
 	FHitResult MouseHitResult;
 	GetWorld()->GetFirstPlayerController()->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Camera), false, MouseHitResult);
 	//FVector Start = FollowCamera->GetComponentLocation();
@@ -119,8 +120,8 @@ void AZombieCharacter::Fire()
 	FActorSpawnParameters SpawnInfo;
 	CollisionParams.AddIgnoredActor(this);
 	
-	DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 3, 0, 2);
-
+	//DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 3, 0, 2);
+	DrawDebugSphere(GetWorld(), End, 10, 10, FColor(181,0,0), true, 2, 0, 2);
 	bool bIsHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Pawn, CollisionParams);
 
 	

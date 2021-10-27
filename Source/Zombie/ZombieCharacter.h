@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "ZombieCharacter.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FShootDelegate);
+
 UCLASS(config=Game)
 class AZombieCharacter : public ACharacter
 {
@@ -36,6 +38,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category= "Help")
 	float HelpDivideValue = 1.f;
+
+	UPROPERTY(BlueprintAssignable)
+	FShootDelegate Shoot;
 
 protected:
 	
