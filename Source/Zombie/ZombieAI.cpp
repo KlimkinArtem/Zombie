@@ -1,6 +1,7 @@
 #include "ZombieAI.h"
 
 #include "DrawDebugHelpers.h"
+#include "ZombieAIController.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -22,6 +23,14 @@ void AZombieAI::BeginPlay()
 float AZombieAI::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
 	AActor* DamageCauser)
 {
+	auto ZombieController = Cast<AZombieAIController>(GetController());
+	FAIMoveRequest MoveReq;
+	MoveReq.SetAcceptanceRadius(5.f);
+	MoveReq.SetGoalActor(ZombieCharacter);
+	ZombieController->MoveTo(MoveReq);
+	
+	this->CallFunctionByNameWithArguments(TEXT("DamageAnim"), ar, NULL, true);
+	
 	Health -= DamageAmount;
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Zombie helath = %f"), Health));
 	

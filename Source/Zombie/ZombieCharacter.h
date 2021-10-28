@@ -79,6 +79,16 @@ private:
 	bool bDeath = false;
 
 	FTimerHandle TimerHandle;
+	FTimerHandle ShootTimerHandle;
+
+	void Debug();
+
+	float Ammo = 15.f;
+	float AmmoClip = 2.f;
+	bool ReloadingSystem();
+	bool bNoAmmoClip = false;
+	void Reloading();
+	bool bReloading = true;
 	
 };
 

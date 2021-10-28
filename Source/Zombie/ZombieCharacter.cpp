@@ -24,6 +24,8 @@ AZombieCharacter::AZombieCharacter()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); 
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
+
+
 	
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -33,6 +35,7 @@ AZombieCharacter::AZombieCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false;
+	
 
 	Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Lantern"));
 	Flashlight->SetupAttachment(RootComponent);
@@ -75,6 +78,8 @@ void AZombieCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 
 	PlayerInputComponent->BindAction("Flashlight", IE_Pressed, this, &AZombieCharacter::FlashlightTurnOnOff);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AZombieCharacter::Fire);
+	PlayerInputComponent->BindAction("Debug", IE_Pressed, this, &AZombieCharacter::Debug);
+	PlayerInputComponent->BindAction("Reloading", IE_Pressed, this, &AZombieCharacter::Reloading);
 }
 
 void AZombieCharacter::MoveForward(float Value)
@@ -104,27 +109,24 @@ void AZombieCharacter::FlashlightTurnOnOff()
 
 void AZombieCharacter::Fire()
 {
+	if(!bReloading || !ReloadingSystem() || (Ammo == -1.f)) return;
+	
 	Shoot.Broadcast();
 	FHitResult MouseHitResult;
 	GetWorld()->GetFirstPlayerController()->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Camera), false, MouseHitResult);
-	//FVector Start = FollowCamera->GetComponentLocation();
-	FVector Start = Pistol->GetActorLocation();
 	
-	//FVector FollowCameraForwardVector = FollowCamera->GetForwardVector();
-	FVector End = MouseHitResult.ImpactPoint * HelpMultiplyValue;
 
+	FVector Start = Pistol->GetActorLocation();
+	FVector End = MouseHitResult.ImpactPoint * HelpMultiplyValue;
+	
 	FHitResult OutHit;
-	
-	
 	FCollisionQueryParams CollisionParams;
-	FActorSpawnParameters SpawnInfo;
 	CollisionParams.AddIgnoredActor(this);
-	
-	//DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 3, 0, 2);
-	DrawDebugSphere(GetWorld(), End, 10, 10, FColor(181,0,0), true, 2, 0, 2);
+	CollisionParams.AddIgnoredActor(Pistol);
+
 	bool bIsHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Pawn, CollisionParams);
 
-	
+	DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 3, 0, 2);
 	
 	if(bIsHit)
 	{
@@ -132,9 +134,8 @@ void AZombieCharacter::Fire()
 		{
 			if(OutHit.Actor->ActorHasTag("Enemy"))
 			{
-				//OutHit.GetActor()->TakeDamage(PistolDamage, FDamageEvent(), GetController(), this);
+				OutHit.GetActor()->TakeDamage(10.f, FDamageEvent(), GetController(), this);
 				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Health: %s"), *OutHit.BoneName.ToString()));
-				
 			}else if(OutHit.Actor->ActorHasTag("Destruction"))
 			{
 				//AActor* RadialForceSpawn = GetWorld()->SpawnActor<AActor>(RadialForce,OutHit.ImpactPoint, FRotator::ZeroRotator, SpawnInfo);
@@ -142,9 +143,8 @@ void AZombieCharacter::Fire()
 				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Bottle!! %s"), *OutHit.ImpactPoint.ToString()));
 			}
 		}
-
-		
 	}
+	
 }
 
 void AZombieCharacter::SpawnWeapon()
@@ -188,5 +188,47 @@ void AZombieCharacter::Death()
 	{
 		Destroy();
 	}, 20, false);
+}
+
+void AZombieCharacter::Debug()
+{
+	AmmoClip += 1;
+	bNoAmmoClip = false;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("AmmoClip = %f"), AmmoClip));
+}
+
+bool AZombieCharacter::ReloadingSystem()
+{
+	if(bNoAmmoClip) return false;
+	Ammo -= 1;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Ammo = %f"), Ammo));
+	if(Ammo <= 0)
+	{
+		if(AmmoClip != 0)
+		{
+			Reloading();
+			return true;
+		}else
+		{
+			bNoAmmoClip = true;
+			return false;
+		}
+		
+	}
+	return true;
+}
+
+void AZombieCharacter::Reloading()
+{
+	if(AmmoClip == 0 || !bReloading) return;
+	bReloading = false;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+	{
+		bReloading = true;
+		AmmoClip -= 1;
+		Ammo = 15.f;
+	}, 1.5, false);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("AmmoClip = %f"), AmmoClip));
+
 }
 
