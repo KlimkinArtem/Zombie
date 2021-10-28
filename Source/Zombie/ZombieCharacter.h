@@ -58,6 +58,7 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 private:
 
@@ -72,6 +73,12 @@ private:
 	void Fire();
 	void SpawnWeapon();
 	AActor* Pistol;
+
+	float Health = 100.f;
+	void Death();
+	bool bDeath = false;
+
+	FTimerHandle TimerHandle;
 	
 };
 

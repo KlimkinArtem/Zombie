@@ -160,4 +160,33 @@ void AZombieCharacter::SpawnWeapon()
 	Pistol->AttachToComponent(GetMesh(), AttachRules, "WeaponSocket");
 }
 
+float AZombieCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	Health -= DamageAmount;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Char helath = %f"), Health));
+	
+	if(Health <= 0)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Death"));
+		//Death();
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+}
+
+void AZombieCharacter::Death()
+{
+	GetCharacterMovement()->DisableMovement();
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetAllBodiesSimulatePhysics(true);
+	GetMesh()->SetAllBodiesPhysicsBlendWeight(1.f, false);
+	bDeath = true;
+
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+	{
+		Destroy();
+	}, 20, false);
+}
 
