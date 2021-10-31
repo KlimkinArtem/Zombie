@@ -85,7 +85,7 @@ public:
 	bool bDeath = false;
 
 	UPROPERTY(BlueprintReadOnly)
-	float ScreenHelperTime = 30.f;
+	float ScreenHelperTime = 100.f;
 
 	UPROPERTY(BlueprintReadOnly)
 	float Health = 100.f;
@@ -128,7 +128,7 @@ private:
 
 	void Help();
 	void HelperRefresh();
-	float HelpTime = 30.f;
+	float HelpTime = 100.f;
 	float CountTime = 0.f;
 	bool bSpawnHelper = true;
 

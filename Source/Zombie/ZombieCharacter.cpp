@@ -192,11 +192,10 @@ void AZombieCharacter::Death()
 	GetMesh()->PlayAnimation(DeathAnim[0], false);
 	bDeath = true;
 	Flashlight->SetIntensity(0.f);
+	this->DisableInput(GetWorld()->GetFirstPlayerController());
 	
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
 	{
-		
-		
 		FOutputDeviceNull ar;
 		this->CallFunctionByNameWithArguments(TEXT("DeathMenu"), ar, NULL, true);
 	}, 5, false);
@@ -296,7 +295,7 @@ void AZombieCharacter::HelperRefresh()
 		GetWorldTimerManager().ClearTimer(HelperTimerHandle);
 		CountTime = 0;
 		bSpawnHelper = true;
-		ScreenHelperTime = 30.f;
+		ScreenHelperTime = 100.f;
 		return;
 	}
 	CountTime++;
