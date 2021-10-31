@@ -1,7 +1,7 @@
 #include "ZombieCharacter.h"
 
+#include "AI_Helper.h"
 #include "DrawDebugHelpers.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -11,6 +11,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Misc/OutputDeviceNull.h"
 
 
 AZombieCharacter::AZombieCharacter()
@@ -58,9 +59,11 @@ void AZombieCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	//GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("Some debug message!"));
-
-	RotateCharacter();
+	if(!bDeath)
+	{
+		RotateCharacter();
+	}
+	
 }
 
 void AZombieCharacter::RotateCharacter()
@@ -85,6 +88,7 @@ void AZombieCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 	PlayerInputComponent->BindAction("Reloading", IE_Pressed, this, &AZombieCharacter::Reloading);
 
 	PlayerInputComponent->BindAction("ShowMap", IE_Pressed, this, &AZombieCharacter::ShowMap);
+	PlayerInputComponent->BindAction("Help", IE_Pressed, this, &AZombieCharacter::Help);
 
 }
 
@@ -145,12 +149,6 @@ void AZombieCharacter::Fire()
 			if(OutHit.Actor->ActorHasTag("Enemy"))
 			{
 				OutHit.GetActor()->TakeDamage(10.f, FDamageEvent(), GetController(), this);
-				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Health: %s"), *OutHit.BoneName.ToString()));
-			}else if(OutHit.Actor->ActorHasTag("Destruction"))
-			{
-				//AActor* RadialForceSpawn = GetWorld()->SpawnActor<AActor>(RadialForce,OutHit.ImpactPoint, FRotator::ZeroRotator, SpawnInfo);
-				//RadialForceSpawn->Destroy();
-				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Bottle!! %s"), *OutHit.ImpactPoint.ToString()));
 			}
 		}
 	}
@@ -179,7 +177,6 @@ float AZombieCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damag
 	
 	if(Health <= 0)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Death"));
 		UGameplayStatics::SpawnSound2D(this, TakeDamageCue[1], 1);
 		Death();
 	}else
@@ -192,16 +189,16 @@ float AZombieCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damag
 
 void AZombieCharacter::Death()
 {
-	GetCharacterMovement()->DisableMovement();
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetMesh()->SetAllBodiesSimulatePhysics(true);
-	GetMesh()->SetAllBodiesPhysicsBlendWeight(1.f, false);
+	GetMesh()->PlayAnimation(DeathAnim[0], false);
 	bDeath = true;
-
+	Flashlight->SetIntensity(0.f);
+	
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
 	{
-		Destroy();
+		
+		
+		FOutputDeviceNull ar;
+		this->CallFunctionByNameWithArguments(TEXT("DeathMenu"), ar, NULL, true);
 	}, 5, false);
 }
 
@@ -282,3 +279,26 @@ void AZombieCharacter::ShowMap()
 	}
 }
 
+void AZombieCharacter::Help()
+{
+	if(!bSpawnHelper) return;
+
+	bSpawnHelper = false;
+	FActorSpawnParameters SpawnParameters;
+	GetWorld()->SpawnActor<AActor>(HelpBot, FVector(12720.f, 11480.f, 108.f), FRotator(0,0,0), SpawnParameters);
+	GetWorldTimerManager().SetTimer(HelperTimerHandle, this, &AZombieCharacter::HelperRefresh, 1.0f, true, 0.f);
+}
+
+void AZombieCharacter::HelperRefresh()
+{
+	if (CountTime == HelpTime)
+	{
+		GetWorldTimerManager().ClearTimer(HelperTimerHandle);
+		CountTime = 0;
+		bSpawnHelper = true;
+		ScreenHelperTime = 30.f;
+		return;
+	}
+	CountTime++;
+	ScreenHelperTime--;
+}

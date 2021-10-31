@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI_Helper.h"
 #include "GameFramework/Character.h"
 #include "Sound/SoundCue.h"
 #include "ZombieCharacter.generated.h"
@@ -53,6 +54,12 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FCameraDelegate CameraDelegate;
 
+	UPROPERTY(EditAnywhere, Category= "Animation")
+	TArray<UAnimationAsset*> DeathAnim;
+
+	UPROPERTY(EditAnywhere, Category= "Bots")
+	TSubclassOf<AActor> HelpBot;
+
 protected:
 	
 	void MoveForward(float Value);
@@ -74,6 +81,14 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	float Ammo = 15.f;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bDeath = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	float ScreenHelperTime = 30.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float Health = 100.f;
 private:
 
 	//rotate character 
@@ -88,13 +103,14 @@ private:
 	void SpawnWeapon();
 	AActor* Pistol;
 
-	float Health = 100.f;
+	
 	void Death();
-	bool bDeath = false;
+
 
 	FTimerHandle TimerHandle;
 	FTimerHandle ShootTimerHandle;
 	FTimerHandle CameraTimerHandle;
+	FTimerHandle HelperTimerHandle;
 
 	void Debug();
 
@@ -109,6 +125,13 @@ private:
 	bool bShowMap = true;
 	bool bCamera = false;
 	bool bEnableInput = true;
+
+	void Help();
+	void HelperRefresh();
+	float HelpTime = 30.f;
+	float CountTime = 0.f;
+	bool bSpawnHelper = true;
+
 	
 };
 
