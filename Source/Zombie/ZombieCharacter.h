@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Sound/SoundCue.h"
 #include "ZombieCharacter.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FShootDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCameraDelegate);
 
 UCLASS(config=Game)
 class AZombieCharacter : public ACharacter
@@ -39,8 +41,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category= "Help")
 	float HelpDivideValue = 1.f;
 
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TArray<USoundCue*> ShootCue;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	TArray<USoundCue*> TakeDamageCue;
+	
 	UPROPERTY(BlueprintAssignable)
 	FShootDelegate Shoot;
+
+	UPROPERTY(BlueprintAssignable)
+	FCameraDelegate CameraDelegate;
 
 protected:
 	
@@ -59,6 +70,9 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	
+	UPROPERTY(BlueprintReadOnly)
+	float Ammo = 15.f;
 
 private:
 
@@ -80,15 +94,21 @@ private:
 
 	FTimerHandle TimerHandle;
 	FTimerHandle ShootTimerHandle;
+	FTimerHandle CameraTimerHandle;
 
 	void Debug();
 
-	float Ammo = 15.f;
-	float AmmoClip = 2.f;
+	
+	float AmmoClip = 9999.f;
 	bool ReloadingSystem();
 	bool bNoAmmoClip = false;
 	void Reloading();
 	bool bReloading = true;
+
+	void ShowMap();
+	bool bShowMap = true;
+	bool bCamera = false;
+	bool bEnableInput = true;
 	
 };
 

@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
 
@@ -25,22 +26,24 @@ AZombieCharacter::AZombieCharacter()
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
 
-
 	
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 300.0f;	
-	CameraBoom->bUsePawnControlRotation = true;
-
+	CameraBoom->bUsePawnControlRotation = false;
+	CameraBoom->bInheritPitch = false;
+	CameraBoom->bInheritYaw = false;
+	CameraBoom->bInheritRoll = false;
+	
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false;
-	
+	FollowCamera->SetRelativeLocation(FVector(300,0,1500));
+	FollowCamera->SetRelativeRotation(FRotator(270,0,0));
 
+	
 	Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Lantern"));
 	Flashlight->SetupAttachment(RootComponent);
-
-	
 
 }
 
@@ -80,10 +83,14 @@ void AZombieCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AZombieCharacter::Fire);
 	PlayerInputComponent->BindAction("Debug", IE_Pressed, this, &AZombieCharacter::Debug);
 	PlayerInputComponent->BindAction("Reloading", IE_Pressed, this, &AZombieCharacter::Reloading);
+
+	PlayerInputComponent->BindAction("ShowMap", IE_Pressed, this, &AZombieCharacter::ShowMap);
+
 }
 
 void AZombieCharacter::MoveForward(float Value)
 {
+	if(!bEnableInput) return;
 	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -109,12 +116,15 @@ void AZombieCharacter::FlashlightTurnOnOff()
 
 void AZombieCharacter::Fire()
 {
+	if(!bEnableInput) return;
+	
 	if(!bReloading || !ReloadingSystem() || (Ammo == -1.f)) return;
 	
 	Shoot.Broadcast();
 	FHitResult MouseHitResult;
 	GetWorld()->GetFirstPlayerController()->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Camera), false, MouseHitResult);
-	
+
+	UGameplayStatics::SpawnSound2D(this, ShootCue[0], 1);
 
 	FVector Start = Pistol->GetActorLocation();
 	FVector End = MouseHitResult.ImpactPoint * HelpMultiplyValue;
@@ -163,13 +173,18 @@ void AZombieCharacter::SpawnWeapon()
 float AZombieCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
 	AActor* DamageCauser)
 {
+	
 	Health -= DamageAmount;
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Char helath = %f"), Health));
 	
 	if(Health <= 0)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Death"));
-		//Death();
+		UGameplayStatics::SpawnSound2D(this, TakeDamageCue[1], 1);
+		Death();
+	}else
+	{
+		UGameplayStatics::SpawnSound2D(this, TakeDamageCue[0], 1);
 	}
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	
@@ -187,7 +202,7 @@ void AZombieCharacter::Death()
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
 	{
 		Destroy();
-	}, 20, false);
+	}, 5, false);
 }
 
 void AZombieCharacter::Debug()
@@ -199,7 +214,11 @@ void AZombieCharacter::Debug()
 
 bool AZombieCharacter::ReloadingSystem()
 {
-	if(bNoAmmoClip) return false;
+	if(bNoAmmoClip)
+	{
+		UGameplayStatics::SpawnSound2D(this, ShootCue[2], 1);
+		return false;
+	}
 	Ammo -= 1;
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Ammo = %f"), Ammo));
 	if(Ammo <= 0)
@@ -221,7 +240,9 @@ bool AZombieCharacter::ReloadingSystem()
 void AZombieCharacter::Reloading()
 {
 	if(AmmoClip == 0 || !bReloading) return;
+
 	bReloading = false;
+	UGameplayStatics::SpawnSound2D(this, ShootCue[1], 1);
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
 	{
 		bReloading = true;
@@ -230,5 +251,34 @@ void AZombieCharacter::Reloading()
 	}, 1.5, false);
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("AmmoClip = %f"), AmmoClip));
 
+}
+
+void AZombieCharacter::ShowMap()
+{
+	if(bCamera) return;
+	
+	if(bShowMap)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Broadcast")));
+		CameraDelegate.Broadcast();
+		bCamera = true;
+		bShowMap = false;
+		bEnableInput = false;
+		GetWorld()->GetTimerManager().SetTimer(CameraTimerHandle, [&]()
+		{
+			bCamera = false;
+		}, 2, false);
+		
+	}else
+	{
+		bCamera = true;
+		bShowMap = true;
+		GetWorld()->GetFirstPlayerController()->SetViewTargetWithBlend(this, 1.5f);
+		GetWorld()->GetTimerManager().SetTimer(CameraTimerHandle, [&]()
+		{
+			bEnableInput = true;
+			bCamera = false;
+		}, 1.5, false);
+	}
 }
 
